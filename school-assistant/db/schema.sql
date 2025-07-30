@@ -116,18 +116,6 @@ CREATE TABLE sync_logs (
     duration_ms INTEGER
 );
 
--- Study sessions table
-CREATE TABLE study_sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-    assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE,
-    start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    end_time TIMESTAMP WITH TIME ZONE,
-    duration_minutes INTEGER,
-    notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
 
 -- Create indexes for better performance
 CREATE INDEX idx_users_email ON users(email);
@@ -146,8 +134,7 @@ CREATE INDEX idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX idx_notifications_is_read ON notifications(is_read);
 CREATE INDEX idx_sync_logs_user_id ON sync_logs(user_id);
 CREATE INDEX idx_sync_logs_platform ON sync_logs(platform);
-CREATE INDEX idx_study_sessions_user_id ON study_sessions(user_id);
-CREATE INDEX idx_study_sessions_course_id ON study_sessions(course_id);
+
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -226,23 +213,7 @@ CREATE POLICY "Users can view their study sessions" ON study_sessions FOR SELECT
 CREATE POLICY "Users can insert their study sessions" ON study_sessions FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their study sessions" ON study_sessions FOR UPDATE USING (auth.uid() = user_id);
 
--- Create views for common queries
-CREATE VIEW user_dashboard AS
-SELECT 
-    u.id as user_id,
-    u.email,
-    u.first_name,
-    u.last_name,
-    COUNT(DISTINCT uc.course_id) as total_courses,
-    COUNT(DISTINCT a.id) as total_assignments,
-    COUNT(DISTINCT CASE WHEN a.due_date < NOW() THEN a.id END) as overdue_assignments,
-    COUNT(DISTINCT g.id) as total_grades,
-    AVG(g.percentage) as average_grade
-FROM users u
-LEFT JOIN user_courses uc ON u.id = uc.user_id
-LEFT JOIN assignments a ON uc.course_id = a.course_id
-LEFT JOIN grades g ON u.id = g.user_id
-GROUP BY u.id, u.email, u.first_name, u.last_name;
+
 
 -- Create function to get upcoming assignments
 CREATE OR REPLACE FUNCTION get_upcoming_assignments(user_uuid UUID, days_ahead INTEGER DEFAULT 7)

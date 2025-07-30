@@ -1,97 +1,30 @@
-/**
- * Canvas LMS Platform Integration
- * Handles authentication, course data retrieval, and grade synchronization
- */
+// backend/platforms/canvas.js
+const axios = require('axios');
 
-class CanvasClient {
-  constructor(apiKey, baseUrl) {
-    this.apiKey = apiKey;
-    this.baseUrl = baseUrl;
-    this.headers = {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    };
-  }
+async function fetchCanvasAssignments(canvasToken, canvasDomain) {
+  const res = await axios.get(`https://${canvasDomain}/api/v1/courses`, {
+    headers: { Authorization: `Bearer ${canvasToken}` }
+  });
 
-  /**
-   * Authenticate user with Canvas
-   */
-  async authenticate() {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/v1/users/self`, {
-        headers: this.headers
+  const courses = res.data;
+  const assignments = [];
+
+  for (const course of courses) {
+    const res2 = await axios.get(`https://${canvasDomain}/api/v1/courses/${course.id}/assignments`, {
+      headers: { Authorization: `Bearer ${canvasToken}` }
+    });
+
+    res2.data.forEach(a => {
+      assignments.push({
+        title: a.name,
+        due_date: a.due_at,
+        course_name: course.name,
+        url: a.html_url
       });
-      
-      if (!response.ok) {
-        throw new Error('Canvas authentication failed');
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Canvas authentication error:', error);
-      throw error;
-    }
+    });
   }
 
-  /**
-   * Get user's courses
-   */
-  async getCourses() {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/v1/courses?enrollment_state=active`, {
-        headers: this.headers
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch courses');
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get assignments for a specific course
-   */
-  async getAssignments(courseId) {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/v1/courses/${courseId}/assignments`, {
-        headers: this.headers
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch assignments');
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching assignments:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get grades for a specific course
-   */
-  async getGrades(courseId) {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/v1/courses/${courseId}/enrollments?user_id=self`, {
-        headers: this.headers
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch grades');
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching grades:', error);
-      throw error;
-    }
-  }
+  return assignments;
 }
 
-module.exports = CanvasClient; 
+module.exports = { fetchCanvasAssignments };
